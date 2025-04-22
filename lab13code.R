@@ -28,12 +28,23 @@ fz <- dnorm(t_stat)
 Fz <- pnorm(t_stat)
 
 # Edgeworth error approx
-error <- (skew / sqrt(n)) * (((2*t_stat)^2+1)/6) * fz
+error <- (skew / sqrt(n)) * ((2*t_stat^2 + 1) / 6) * fz
 
 probability <- Fz + error
 
 # part b
+t_vals <- seq(-10, 10, by=0.1)
+fz_vals <- dnorm(t_vals)
+error_vals <- (skew / sqrt(n)) * ((2*t_vals^2 + 1) / 6) * fz_vals
 
+error_df <- data.frame(t=t_vals, error=error_vals)
+
+ggplot(error_df, aes(x=t, y=error)) +
+  geom_line(color="red", linewidth=1) +
+  xlab("t-statistic") +
+  ylab("error") +
+  ggtitle("First-Order Edgeworth Approximation Error") +
+  theme_bw()
 
 # part c
 
