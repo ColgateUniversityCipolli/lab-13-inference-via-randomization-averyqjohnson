@@ -168,20 +168,330 @@ p.high <- mean(resamples.null.diff$t_stats.shifted >= high)
 # use resamples
 # need this for the flurescence (x bar)
 
-(ci.boot.closer <- quantile(resamples.null.closer$t_stats.shifted, c(0.025, 0.975)))
+library(boot)
+boot.mean <- function(data, indicies){
+  mean(data[indicies])
+}
+
+# For closer
+boot.closer <- boot(data = closer, statistic = boot.mean, R=10000)
+(ci.boot.closer <- boot.ci(boot.closer, type="bca"))
 (ci.low.t.closer <- t.test(x = closer, mu = 0, alternative = "two.sided")$conf.int[1])
 (ci.high.t.closer <- t.test(x = closer, mu = 0, alternative = "two.sided")$conf.int[2])
 
 
-(ci.boot.further <- quantile(resamples.null.further$t_stats.shifted, c(0.025, 0.975)))
+boot.further <- boot(data = further, statistic = boot.mean, R=10000)
+(ci.boot.further <- boot.ci(boot.further, type="bca"))
 (ci.low.t.further <- t.test(x = further, mu = 0, alternative = "two.sided")$conf.int[1])
 (ci.high.t.further <- t.test(x = further, mu = 0, alternative = "two.sided")$conf.int[2])
 
 
-(ci.low.boot.diff <- quantile(resamples.null.diff$t_stats.shifted, c(0.025, 0.975)))
+boot.diff <- boot(data = diff, statistic = boot.mean, R=10000)
+(ci.boot.diff <- boot.ci(boot.diff, type="bca"))
 (ci.low.t.diff <- t.test(x = diff, mu = 0, alternative = "two.sided")$conf.int[1])
 (ci.high.t.diff <- t.test(x = diff, mu = 0, alternative = "two.sided")$conf.int[2])
+
 
 ###############################################################################
 # Question 3
 ###############################################################################
+
+# part a
+
+# closer data
+R <- 10000
+mu0 <- 0
+rand.closer <- tibble(xbars = rep(NA, R))
+
+# PREPROCESSING: shift the data to be mean 0 under H0
+x.shift <- closer - mu0
+for (i in 1:R){
+  curr.rand <- x.shift *
+    sample(x = c(-1, 1),
+           size = length(x.shift),
+           replace = T)
+  rand.closer$xbars[i] <- mean(curr.rand)
+}
+rand.closer <- rand.closer |>
+  mutate(xbars = xbars + mu0) # shifting back
+
+# further data
+R <- 10000
+mu0 <- 0
+rand.further <- tibble(xbars = rep(NA, R))
+
+# PREPROCESSING: shift the data to be mean 0 under H0
+x.shift <- further - mu0
+for (i in 1:R){
+  curr.rand <- x.shift *
+    sample(x = c(-1, 1),
+           size = length(x.shift),
+           replace = T)
+  rand.further$xbars[i] <- mean(curr.rand)
+}
+rand.further <- rand.further |>
+  mutate(xbars = xbars + mu0) # shifting back
+
+# difference data
+R <- 10000
+mu0 <- 0
+rand.diff <- tibble(xbars = rep(NA, R))
+
+# PREPROCESSING: shift the data to be mean 0 under H0
+x.shift <- diff - mu0
+for (i in 1:R){
+  curr.rand <- x.shift *
+    sample(x = c(-1, 1),
+           size = length(x.shift),
+           replace = T)
+  rand.diff$xbars[i] <- mean(curr.rand)
+}
+rand.diff <- rand.diff |>
+  mutate(xbars = xbars + mu0) # shifting back
+
+# part b
+
+# closer
+delta.closer <- abs(mean(closer) - mu0)
+low.closer <- mu0 - delta.closer
+high.closer <- mu0 + delta.closer
+(p.val.closer <- mean(rand.closer$xbars <= low.closer) +
+                mean(rand.closer$xbars >= high.closer))
+
+# further
+delta.further <- abs(mean(further) - mu0)
+low.further <- mu0 - delta.further
+high.further <- mu0 + delta.further
+(p.val.further <- mean(rand.further$xbars <= low.further) +
+  mean(rand.further$xbars >= high.further))
+
+# difference
+delta.diff <- abs(mean(diff) - mu0)
+low.diff <- mu0 - delta.diff
+high.diff <- mu0 + delta.diff
+(p.val.diff <- mean(rand.diff$xbars <= low.diff) +
+  mean(rand.diff$xbars >= high.diff))
+
+
+# part c
+
+# closer
+R <- 1000
+mu0.iterate <- 0.01
+starting.point.closer <- mean(closer)
+
+mu.lower.closer <- starting.point.closer
+repeat{
+  rand <- tibble(xbars = rep(NA, R))
+  
+  # PREPROCESSING: shift the data to be mean 0 under H0
+  x.shift.closer <- closer - mu.lower.closer
+  # RANDOMIZE / SHUFFLE
+  for(i in 1:R){
+    curr.rand <- x.shift.closer *
+      sample(x = c(-1, 1),
+             size = length(x.shift.closer),
+             replace = T)
+    
+    rand.closer$xbars[i] <- mean(curr.rand)
+  }
+  # Thinking is hard
+  rand.closer <- rand.closer |>
+    mutate(xbars = xbars + mu.lower.closer) # shifting back
+  
+  # p-value 
+  delta.closer <- abs(mean(closer) - mu.lower.closer)
+  (low.closer <- mu.lower.closer - delta.closer) # mirror
+  (high.closer <- mu.lower.closer + delta.closer)   # xbar
+  (p.val.closer <- mean(rand.closer$xbars <= low.closer) +
+      mean(rand.closer$xbars >= high))
+  
+  if(p.val.closer < 0.05){
+    break
+  }else{
+    mu.lower.closer <- mu.lower.closer - mu0.iterate
+  }
+}
+
+mu.upper.closer <- starting.point.closer
+repeat{
+  rand.closer <- tibble(xbars = rep(NA, R))
+  
+  # PREPROCESSING: shift the data to be mean 0 under H0
+  x.shift.closer <- closer - mu.upper.closer
+  # RANDOMIZE / SHUFFLE
+  for(i in 1:R){
+    curr.rand <- x.shift.closer *
+      sample(x = c(-1, 1),
+             size = length(x.shift.closer),
+             replace = T)
+    
+    rand.closer$xbars[i] <- mean(curr.rand)
+  }
+  # Thinking is hard
+  rand.closer <- rand.closer |>
+    mutate(xbars = xbars + mu.upper.closer) # shifting back
+  
+  # p-value 
+  delta.closer <- abs(mean(closer) - mu.upper.closer)
+  (low.closer <- mu.upper.closer - delta.closer) # mirror
+  (high.closer <- mu.upper.closer + delta.closer)   # xbar
+  (p.val.closer <- mean(rand.closer$xbars <= low.closer) +
+      mean(rand.closer$xbars >= high))
+  
+  if(p.val.closer < 0.05){
+    break
+  }else{
+    mu.upper.closer <- mu.upper.closer + mu0.iterate
+  }
+}
+
+c(mu.lower.closer, mu.upper.closer)
+
+# further
+R <- 1000
+mu0.iterate <- 0.01
+starting.point.further <- mean(further)
+
+mu.lower.further <- starting.point.further
+repeat {
+  rand.further <- tibble(xbars = rep(NA, R))
+  
+  # PREPROCESSING: shift the data to be mean 0 under H0
+  x.shift.further <- further - mu.lower.further
+  # RANDOMIZE / SHUFFLE
+  for(i in 1:R){
+    curr.rand <- x.shift.further *
+      sample(x = c(-1, 1),
+             size = length(x.shift.further),
+             replace = T)
+    
+    rand.further$xbars[i] <- mean(curr.rand)
+  }
+  
+  rand.further <- rand.further %>%
+    mutate(xbars = xbars + mu.lower.further) # shifting back
+  
+  # p-value 
+  delta.further <- abs(mean(further) - mu.lower.further)
+  (low.further <- mu.lower.further - delta.further) # mirror
+  (high.further <- mu.lower.further + delta.further)   # xbar
+  (p.val.further <- mean(rand.further$xbars <= low.further) +
+      mean(rand.further$xbars >= high.further))
+  
+  if(p.val.further < 0.05){
+    break
+  } else {
+    mu.lower.further <- mu.lower.further - mu0.iterate
+  }
+}
+
+mu.upper.further <- starting.point.further
+repeat {
+  rand.further <- tibble(xbars = rep(NA, R))
+  
+  # PREPROCESSING: shift the data to be mean 0 under H0
+  x.shift.further <- further - mu.upper.further
+  # RANDOMIZE / SHUFFLE
+  for(i in 1:R){
+    curr.rand <- x.shift.further *
+      sample(x = c(-1, 1),
+             size = length(x.shift.further),
+             replace = T)
+    
+    rand.further$xbars[i] <- mean(curr.rand)
+  }
+  
+  rand.further <- rand.further %>%
+    mutate(xbars = xbars + mu.upper.further) # shifting back
+  
+  # p-value 
+  delta.further <- abs(mean(further) - mu.upper.further)
+  (low.further <- mu.upper.further - delta.further) # mirror
+  (high.further <- mu.upper.further + delta.further)   # xbar
+  (p.val.further <- mean(rand.further$xbars <= low.further) +
+      mean(rand.further$xbars >= high.further))
+  
+  if(p.val.further < 0.05){
+    break
+  } else {
+    mu.upper.further <- mu.upper.further + mu0.iterate
+  }
+}
+
+c(mu.lower.further, mu.upper.further)
+
+# difference
+R <- 1000
+mu0.iterate <- 0.01
+starting.point.diff <- mean(diff)
+
+mu.lower.diff <- starting.point.diff
+repeat {
+  rand.diff <- tibble(xbars = rep(NA, R))
+  
+  # PREPROCESSING: shift the data to be mean 0 under H0
+  x.shift.diff <- diff - mu.lower.diff
+  # RANDOMIZE / SHUFFLE
+  for(i in 1:R){
+    curr.rand <- x.shift.diff *
+      sample(x = c(-1, 1),
+             size = length(x.shift.diff),
+             replace = T)
+    
+    rand.diff$xbars[i] <- mean(curr.rand)
+  }
+  
+  rand.diff <- rand.diff %>%
+    mutate(xbars = xbars + mu.lower.diff) # shifting back
+  
+  # p-value 
+  delta.diff <- abs(mean(diff) - mu.lower.diff)
+  (low.diff <- mu.lower.diff - delta.diff) # mirror
+  (high.diff <- mu.lower.diff + delta.diff)   # xbar
+  (p.val.diff <- mean(rand.diff$xbars <= low.diff) +
+      mean(rand.diff$xbars >= high.diff))
+  
+  if(p.val.diff < 0.05){
+    break
+  } else {
+    mu.lower.diff <- mu.lower.diff - mu0.iterate
+  }
+}
+
+mu.upper.diff <- starting.point.diff
+repeat {
+  rand.diff <- tibble(xbars = rep(NA, R))
+  
+  # PREPROCESSING: shift the data to be mean 0 under H0
+  x.shift.diff <- diff - mu.upper.diff
+  # RANDOMIZE / SHUFFLE
+  for(i in 1:R){
+    curr.rand <- x.shift.diff *
+      sample(x = c(-1, 1),
+             size = length(x.shift.diff),
+             replace = T)
+    
+    rand.diff$xbars[i] <- mean(curr.rand)
+  }
+  
+  rand.diff <- rand.diff %>%
+    mutate(xbars = xbars + mu.upper.diff) # shifting back
+  
+  # p-value 
+  delta.diff <- abs(mean(diff) - mu.upper.diff)
+  (low.diff <- mu.upper.diff - delta.diff) # mirror
+  (high.diff <- mu.upper.diff + delta.diff)   # xbar
+  (p.val.diff <- mean(rand.diff$xbars <= low.diff) +
+      mean(rand.diff$xbars >= high.diff))
+  
+  if(p.val.diff < 0.05){
+    break
+  } else {
+    mu.upper.diff <- mu.upper.diff + mu0.iterate
+  }
+}
+
+c(mu.lower.diff, mu.upper.diff)
+
+
