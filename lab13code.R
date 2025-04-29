@@ -13,7 +13,6 @@ library(e1071)
 
 # part a
 zebra <- read.csv("zebrafinches.csv")
-view(zebra)
 
 further <- zebra$further
 n <- length(further)
@@ -39,12 +38,14 @@ error_vals <- (skew / sqrt(n)) * ((2*t_vals^2 + 1) / 6) * fz_vals
 
 error_df <- data.frame(t=t_vals, error=error_vals)
 
-ggplot(data = error_df, aes(x=t, y=error)) +
+error.plot <- ggplot(data = error_df, aes(x=t, y=error)) +
   geom_line(color="red", linewidth=1) +
   xlab("T-Statistic") +
   ylab("Error") +
   ggtitle("First-Order Edgeworth Approximation for Error") +
   theme_bw()
+
+error.plot
 
 # part c
 # critical t value
@@ -88,7 +89,7 @@ delta.t.closer <- mean(resamples.closer$t_stats) - 0
 resamples.null.closer <- resamples.closer |>
   mutate(t_stats.shifted = t_stats - delta.t.closer)
 
-# mean(resamples.null.closer$t_stats.shifted)
+(mean(resamples.null.closer$t_stats.shifted))
 
 # further
 
@@ -109,7 +110,7 @@ delta.t.further <- mean(resamples.further$t_stats) - 0
 resamples.null.further <- resamples.further |>
   mutate(t_stats.shifted = t_stats - delta.t.further)
 
-# mean(resamples.null.further$t_stats.shifted)
+(mean(resamples.null.further$t_stats.shifted))
 
 # difference
 
@@ -130,7 +131,7 @@ delta.t.diff <- mean(resamples.diff$t_stats) - 0
 resamples.null.diff <- resamples.diff |>
   mutate(t_stats.shifted = t_stats - delta.t.diff)
 
-# mean(resamples.null.diff$t_stats.shifted)
+(mean(resamples.null.diff$t_stats.shifted))
 
 # part b
 
@@ -252,18 +253,10 @@ rand.diff <- rand.diff |>
 # part b
 
 # closer
-delta.closer <- abs(mean(closer) - mu0)
-low.closer <- mu0 - delta.closer
-high.closer <- mu0 + delta.closer
-(p.val.closer <- mean(rand.closer$xbars <= low.closer) +
-                mean(rand.closer$xbars >= high.closer))
+(p.val.closer <- mean(rand.closer$xbars >= mean(closer)))
 
 # further
-delta.further <- abs(mean(further) - mu0)
-low.further <- mu0 - delta.further
-high.further <- mu0 + delta.further
-(p.val.further <- mean(rand.further$xbars <= low.further) +
-  mean(rand.further$xbars >= high.further))
+(p.val.further <- mean(rand.further$xbars <= mean(further)))
 
 # difference
 delta.diff <- abs(mean(diff) - mu0)
@@ -274,15 +267,14 @@ high.diff <- mu0 + delta.diff
 
 
 # part c
-
 # closer
 R <- 1000
 mu0.iterate <- 0.01
 starting.point.closer <- mean(closer)
 
 mu.lower.closer <- starting.point.closer
-repeat{
-  rand <- tibble(xbars = rep(NA, R))
+repeat {
+  rand.closer <- tibble(xbars = rep(NA, R))
   
   # PREPROCESSING: shift the data to be mean 0 under H0
   x.shift.closer <- closer - mu.lower.closer
@@ -295,8 +287,8 @@ repeat{
     
     rand.closer$xbars[i] <- mean(curr.rand)
   }
-  # Thinking is hard
-  rand.closer <- rand.closer |>
+  
+  rand.closer <- rand.closer %>%
     mutate(xbars = xbars + mu.lower.closer) # shifting back
   
   # p-value 
@@ -304,17 +296,17 @@ repeat{
   (low.closer <- mu.lower.closer - delta.closer) # mirror
   (high.closer <- mu.lower.closer + delta.closer)   # xbar
   (p.val.closer <- mean(rand.closer$xbars <= low.closer) +
-      mean(rand.closer$xbars >= high))
+      mean(rand.closer$xbars >= high.closer))
   
   if(p.val.closer < 0.05){
     break
-  }else{
+  } else {
     mu.lower.closer <- mu.lower.closer - mu0.iterate
   }
 }
 
 mu.upper.closer <- starting.point.closer
-repeat{
+repeat {
   rand.closer <- tibble(xbars = rep(NA, R))
   
   # PREPROCESSING: shift the data to be mean 0 under H0
@@ -328,8 +320,8 @@ repeat{
     
     rand.closer$xbars[i] <- mean(curr.rand)
   }
-  # Thinking is hard
-  rand.closer <- rand.closer |>
+  
+  rand.closer <- rand.closer %>%
     mutate(xbars = xbars + mu.upper.closer) # shifting back
   
   # p-value 
@@ -337,11 +329,11 @@ repeat{
   (low.closer <- mu.upper.closer - delta.closer) # mirror
   (high.closer <- mu.upper.closer + delta.closer)   # xbar
   (p.val.closer <- mean(rand.closer$xbars <= low.closer) +
-      mean(rand.closer$xbars >= high))
+      mean(rand.closer$xbars >= high.closer))
   
   if(p.val.closer < 0.05){
     break
-  }else{
+  } else {
     mu.upper.closer <- mu.upper.closer + mu0.iterate
   }
 }
@@ -493,5 +485,3 @@ repeat {
 }
 
 c(mu.lower.diff, mu.upper.diff)
-
-
